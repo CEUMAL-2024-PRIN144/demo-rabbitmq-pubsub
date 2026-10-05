@@ -66,11 +66,38 @@ curl http://localhost:3002/notifications
 
 Invalid input (missing item, non-positive or non-integer quantity) returns `400`.
 
+## Dead letter queue (payment-service)
+
+`payment-service.orders` is declared with a dead-letter exchange (`orders.dlx`, type `direct`).
+When payment processing fails, the service rejects the message without requeueing
+(`nack(msg, false, false)`) and RabbitMQ re-routes it to `payment-service.orders.dlq`.
+
+For testing, any order whose `item` is exactly `"FAIL_TEST"` fails payment:
+
+```bash
+curl -X POST http://localhost:3000/orders \
+  -H "Content-Type: application/json" \
+  -d '{"item": "FAIL_TEST", "quantity": 1}'
+
+curl http://localhost:3001/payments/dlq   # {"queue":"payment-service.orders.dlq","messageCount":1}
+```
+
+The order is not listed in `/payments`, and the DLQ message (with RabbitMQ's `x-death` header
+explaining why it was dead-lettered) can be inspected in the management UI under
+**Queues → payment-service.orders.dlq → Get messages**. The notification-service is unaffected
+and still receives the order, since only payment-service's queue is dead-lettered.
+
+> **Upgrading from an earlier run?** RabbitMQ cannot add dead-letter settings to an existing
+> queue. If `payment-service.orders` was created by the earlier version, payment-service
+> exits with `PRECONDITION_FAILED`. Delete that queue (management UI, or
+> `docker compose down -v`) and restart the service.
+
 ## Endpoints
 
 | Service              | Method | Path             | Description                       |
 |----------------------|--------|------------------|-----------------------------------|
 | order-service        | POST   | `/orders`        | Create an order and publish event |
 | payment-service      | GET    | `/payments`      | Payments processed so far         |
+| payment-service      | GET    | `/payments/dlq`  | Number of failed orders in the DLQ |
 | notification-service | GET    | `/notifications` | Notifications sent so far         |
 | all                  | GET    | `/health`        | Health check                      |
