@@ -1,0 +1,41 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI (guest / guest)
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  order-service:
+    build: ./order-service
+    ports:
+      - "3000:3000"
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  payment-service:
+    build: ./payment-service
+    ports:
+      - "3001:3001"
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  notification-service:
+    build: ./notification-service
+    ports:
+      - "3002:3002"
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      rabbitmq:
+        condition: service_healthy

@@ -1,0 +1,13 @@
+{
+  "name": "order-service",
+  "version": "1.0.0",
+  "description": "Accepts orders over HTTP and publishes order.created events to RabbitMQ",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.4",
+    "express": "^4.21.2"
+  }
+}
